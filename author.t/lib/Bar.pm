@@ -9,8 +9,15 @@ sub concat_with_spaces {
 }
 
 sub rpc_method_names {
-    my ($self) = @_;
-    return [$self->_rpc_method_names];
+    my ($self, %params) = @_;
+
+    my %exclusions = ();
+
+    if (exists $params{'exclusions'}) {
+        %exclusions = map { $_ => 1 } @{$params{'exclusions'}};
+    }
+
+    return [sort grep { !ref $_ && !exists $exclusions{$_} } $self->_rpc_method_names()];
 }
 
 
