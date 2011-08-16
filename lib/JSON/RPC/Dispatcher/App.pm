@@ -86,6 +86,14 @@ In F<app.psgi>:
 =cut
 
 #--------------------------------------------------------
+has propagate_status_codes => (
+    is          => 'rw',
+    isa         => 'Bool',
+    default     => 1,
+    required    => 1,
+);
+
+#--------------------------------------------------------
 
 =head2 register_rpc_method_names ( names )
 
@@ -127,7 +135,9 @@ Generates a PSGI/L<Plack> compatible app.
 
 sub to_app {
     my $self = shift;
-    my $rpc = JSON::RPC::Dispatcher->new;
+
+    my $rpc = JSON::RPC::Dispatcher->new(propagate_status_codes => $self->propagate_status_codes());
+
     my $ref;
     if ($ref = $self->can('_rpc_method_names')) {
         foreach my $method ($ref->()) {

@@ -36,6 +36,7 @@ sub build_request {
 
     my $request_content = encode_json( { map { $_ => $rpc_params{$_} } grep { defined $rpc_params{$_} } keys %rpc_params} );
 
+
     return HTTP::Request->new($params{'http_request_method'}, $params{'uri'}, $params{'http_headers'}, $request_content);
 }
 

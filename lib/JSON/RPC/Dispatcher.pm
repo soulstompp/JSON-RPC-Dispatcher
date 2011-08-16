@@ -126,14 +126,23 @@ All errors that are not gracefully handled by the system will be put into a fata
 
 =cut
 
-
 use Moose;
 use bytes;
+
 extends qw(Plack::Component);
+
 use Plack::Request;
 use JSON;
 use JSON::RPC::Dispatcher::Procedure;
 use Log::Any qw($log);
+
+#--------------------------------------------------------
+has propagate_status_codes => (
+    is          => 'rw',
+    isa         => 'Bool',
+    default     => 1,
+    required    => 1,
+);
 
 #--------------------------------------------------------
 has error_code => (
@@ -281,8 +290,12 @@ sub translate_error_code_to_status {
         '-32600'    => 400,
         '-32601'    => 404,
     );
+
+    return 200 unless $self->propagate_status_codes();
+
     my $status = $trans{$code};
     $status ||= 500;
+
     return $status;
 }
 
@@ -384,7 +397,7 @@ sub call {
     if ($rpc_response) {
         my $json = eval{JSON->new->utf8->encode($rpc_response)};
         if ($@) {
-            $log->error("JSON repsonse error: ".$@);
+            $log->error("JSON response error: ".$@);
             $json = JSON->new->utf8->encode({
                 jsonrpc => "2.0",
                 error   => {
