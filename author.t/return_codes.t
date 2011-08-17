@@ -20,53 +20,24 @@ my $code_propagating_app = Baz->new();
 
 is($code_propagating_app->propagate_status_codes(), 1, 'propagation of status codes is on');
 
-test_psgi $code_propagating_app->to_app(), sub {
-    my $cb = shift;
+test_rpc_dispatch(app => $code_propagating_app->to_app(), request => $good_request, response => build_response(result => [qw(barf rpc_method_names sum utf8_string)]), test_name => 'propagated codes - returns method names');
 
-    my $response = $cb->($good_request);
+#TODO: why is this crashing?
+#TODO: can't we just lookup the http status?
+test_rpc_dispatch(app => $code_propagating_app->to_app(), request => $bad_method_request, response => build_error_response(error_data => 'rpc_metod_names', error_message => 'Method not found.', error_code => -32601, http_status => 404, http_message => 'Not Found'), test_name => 'propagated codes - bad method request error response');
 
-    is_deeply(decode_json($response->content()), build_response_hashref(result => [qw(barf rpc_method_names sum utf8_string)]) , 'propagated codes - returns method names');
-    is($response->code(), 200, 'propagated codes - good request returns 200 + response object');
+test_rpc_dispatch(app => $code_propagating_app->to_app(), request => $bad_method_request, response => build_error_response(error_data => 'rpc_metod_names', error_message => 'Method not found.', error_code => -32601, http_status => 404, http_message => 'Not Found'), test_name => 'propagated codes - bad method request error response');
 
-    $response = $cb->($bad_method_request);
-    
-    #{"jsonrpc":"2.0","error":{"data":"rpc_metod_names","message":"Method not found.","code":-32601},"id":1}
-    is_deeply(decode_json($response->content()), build_error_response_hashref(error_data => 'rpc_metod_names', error_message => 'Method not found.', error_code => -32601), 'propagated codes - bad method request error response');
-
-    is($response->code(), 404, 'propagated codes - bad method request returns 404 + error response object');
-
-    $response = $cb->($deadly_request);
-   
-    #{"jsonrpc":"2.0","error":{"data":"hurp!\n","message":"Internal error.","code":-32603},"id":1}
-    is_deeply(decode_json($response->content()), build_error_response_hashref(error_data => "hurp!\n", error_message => 'Internal error.', error_code => -32603), 'propagated codes - deadly request error response');
-
-    is($response->code(), 500, 'propagated codes - deadly request returns 500 + error response object');
-};
-
+test_rpc_dispatch(app => $code_propagating_app->to_app(), request => $deadly_request, response => build_error_response(error_data => "hurp!\n", error_message => 'Internal error.', error_code => -32603, http_status => 500, http_message => 'Internal Server Error'), test_name => 'propagated codes - bad method request error response');  
+  
 #responses that don't propagate
 my $non_code_propagating_app = Baz->new(propagate_status_codes => 0);
 
 is($non_code_propagating_app->propagate_status_codes(), 0, 'propagation of status codes is off');
     
-test_psgi $non_code_propagating_app->to_app(), sub {
-    my $cb = shift;
+test_rpc_dispatch(app => $non_code_propagating_app->to_app(), request => $bad_method_request, response => build_error_response(error_data => 'rpc_metod_names', error_message => 'Method not found.', error_code => -32601, http_status => 200, http_message => 'OK'), test_name => 'propagated codes - bad method request error response');
 
-    my $response = $cb->($good_request);
-    
-    is_deeply(decode_json($response->content()), build_response_hashref(result => [qw(barf rpc_method_names sum utf8_string)]) , 'propagated codes - returns method names');
-    is($response->code(), 200, 'non-propagated codes - good request returns 200 + response object');
+test_rpc_dispatch(app => $non_code_propagating_app->to_app(), request => $bad_method_request, response => build_error_response(error_data => 'rpc_metod_names', error_message => 'Method not found.', error_code => -32601, http_status => 200, http_message => 'OK'), test_name => 'propagated codes - bad method request error response');
 
-    $response = $cb->($bad_method_request);
-    
-    #{"jsonrpc":"2.0","error":{"data":"rpc_metod_names","message":"Method not found.","code":-32601},"id":1}
-    is_deeply(decode_json($response->content()), build_error_response_hashref(error_data => 'rpc_metod_names', error_message => 'Method not found.', error_code => -32601), 'non-propagated codes - bad method request error response');
-
-    is($response->code(), 200, 'non-propagated codes - bad method request returns 200 + error response object');
-
-    $response = $cb->($deadly_request);
-   
-    #{"jsonrpc":"2.0","error":{"data":"hurp!\n","message":"Internal error.","code":-32603},"id":1}
-    is_deeply(decode_json($response->content()), build_error_response_hashref(error_data => "hurp!\n", error_message => 'Internal error.', error_code => -32603), 'non-propagated codes - bad method request error response');
-
-    is($response->code(), 200, 'non-propagated codes - deadly request returns 200 + error response object');
-};
+test_rpc_dispatch(app => $non_code_propagating_app->to_app(), request => $deadly_request, response => build_error_response(error_data => "hurp!\n", error_message => 'Internal error.', error_code => -32603, http_status => 200, http_message => 'OK'), test_name => 'propagated codes - bad method request error response');  
+  
