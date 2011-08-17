@@ -5,7 +5,7 @@ use strict;
 use Plack::Test;
 
 our @ISA = qw(Plack::Test);
-our @EXPORT = qw(test_psgi test_rpc_dispatch build_request build_response build_error_response build_response_json build_error_response_json build_response_hash build_error_response_hash build_response_hashref build_error_response_hashref);
+our @EXPORT = qw(test_psgi test_rpc_dispatch build_request_json build_request build_response build_error_response build_response_json build_error_response_json build_response_hash build_error_response_hash build_response_hashref build_error_response_hashref);
 
 use JSON;
 
@@ -36,11 +36,8 @@ sub test_rpc_dispatch {
     return undef;    
 }
 
-#TODO: this is actually build_request_json
 sub build_request {    
     my (%params) = @_;
-
-    my %rpc_params = ();
 
     my %defaults = (
                     uri => '/',
@@ -56,14 +53,21 @@ sub build_request {
         $params{$key} ||= $defaults{$key};
     }
 
+    my $request_content = build_request_json(%params);
+    
+    return HTTP::Request->new($params{'http_request_method'}, $params{'uri'}, $params{'http_headers'}, $request_content);
+}
+
+sub build_request_json {
+    my %params = @_;
+
+    my %rpc_params = ();
+
     die "rpc_method required for build_request()" unless defined $params{'rpc_method'};
 
     @rpc_params{qw(jsonrpc method params id)} = @params{qw(rpc_version rpc_method rpc_params rpc_id)};
 
-    my $request_content = encode_json( { map { $_ => $rpc_params{$_} } grep { defined $rpc_params{$_} } keys %rpc_params} );
-
-
-    return HTTP::Request->new($params{'http_request_method'}, $params{'uri'}, $params{'http_headers'}, $request_content);
+    return encode_json( { map { $_ => $rpc_params{$_} } grep { defined $rpc_params{$_} } keys %rpc_params} );
 }
 
 sub build_response {
